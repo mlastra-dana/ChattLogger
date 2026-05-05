@@ -3,6 +3,57 @@ import SearchBar from './components/SearchBar.jsx'
 import ChatViewer from './components/ChatViewer.jsx'
 
 const API_URL = 'https://wmkiek2xldnbjg4aew6lrp7z3e0xlcka.lambda-url.us-east-1.on.aws/'
+const FETCH_TIMEOUT_MS = 15000
+
+async function fetchChat(telefono, { signal, onError } = {}) {
+  const normalizedPhone = telefono.trim()
+  const url = `${API_URL}?telefono=${encodeURIComponent(normalizedPhone)}`
+  const timeoutController = new AbortController()
+  const timeoutId = window.setTimeout(() => timeoutController.abort(), FETCH_TIMEOUT_MS)
+
+  if (!API_URL.startsWith('https://')) {
+    console.error('Invalid API URL. HTTPS is required:', API_URL)
+    onError?.(new Error('Invalid API URL'))
+    return []
+  }
+
+  if (signal) {
+    signal.addEventListener('abort', () => timeoutController.abort(), { once: true })
+  }
+
+  try {
+    console.log('Fetching:', url)
+
+    const response = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: timeoutController.signal,
+    })
+
+    console.log('HTTP status:', response.status)
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    console.log('Response data:', data)
+
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    if (signal?.aborted) {
+      console.log('Fetch cancelled:', url)
+      return []
+    }
+
+    console.error('Fetch error:', error)
+    onError?.(error)
+    return []
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
 
 function isInsideDateRange(message, startDate, endDate) {
   const messageDate = new Date(message.timestamp)
@@ -33,6 +84,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [hasSearched, setHasSearched] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
 
   const filteredMessages = useMemo(() => {
     return messages
@@ -48,33 +100,21 @@ export default function App() {
     setError('')
 
     async function loadMessages() {
-      try {
-        const response = await fetch(`${API_URL}?telefono=${encodeURIComponent(searchedPhone)}`, {
-          signal: controller.signal,
-        })
+      const data = await fetchChat(searchedPhone, {
+        signal: controller.signal,
+        onError: () => setError('Error conectando con el servidor'),
+      })
 
-        if (!response.ok) {
-          throw new Error('No pudimos consultar el historial en este momento.')
-        }
-
-        const data = await response.json()
+      if (!controller.signal.aborted) {
         setMessages(Array.isArray(data) ? data : [])
-      } catch (requestError) {
-        if (requestError.name !== 'AbortError') {
-          setMessages([])
-          setError(requestError.message || 'Ocurrio un error inesperado.')
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
     loadMessages()
 
     return () => controller.abort()
-  }, [searchedPhone])
+  }, [searchedPhone, retryCount])
 
   function handleSearch(event) {
     event.preventDefault()
@@ -89,7 +129,17 @@ export default function App() {
       return
     }
 
-    setSearchedPhone(normalizedPhone)
+    if (normalizedPhone === searchedPhone) {
+      setRetryCount((currentCount) => currentCount + 1)
+    } else {
+      setSearchedPhone(normalizedPhone)
+    }
+  }
+
+  function handleRetry() {
+    if (!searchedPhone) return
+
+    setRetryCount((currentCount) => currentCount + 1)
   }
 
   return (
@@ -124,8 +174,18 @@ export default function App() {
         />
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-sm">
-            {error}
+          <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <span>{error}</span>
+            {searchedPhone && (
+              <button
+                type="button"
+                onClick={handleRetry}
+                disabled={loading}
+                className="inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-4 text-xs font-bold uppercase tracking-[0.1em] text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+              >
+                Reintentar
+              </button>
+            )}
           </div>
         )}
 
