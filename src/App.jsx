@@ -4,33 +4,6 @@ import ChatViewer from './components/ChatViewer.jsx'
 
 const API_URL = 'https://wmkiek2xldnbjg4aew6lrp7z3e0xlcka.lambda-url.us-east-1.on.aws/'
 
-async function fetchChat(telefono) {
-  const normalizedPhone = telefono.trim()
-  const url = `${API_URL}?telefono=${encodeURIComponent(normalizedPhone)}`
-
-  try {
-    console.log('Fetching...')
-    console.log('URL:', url)
-
-    const response = await fetch(url)
-
-    console.log('HTTP status:', response.status)
-
-    if (!response.ok) {
-      throw new Error(`HTTP error ${response.status}`)
-    }
-
-    const data = await response.json()
-
-    console.log('Response data:', data)
-
-    return Array.isArray(data) ? data : []
-  } catch (error) {
-    console.error('Fetch error:', error)
-    return null
-  }
-}
-
 function isInsideDateRange(message, startDate, endDate) {
   const messageDate = new Date(message.timestamp)
 
@@ -52,15 +25,14 @@ function isInsideDateRange(message, startDate, endDate) {
 }
 
 export default function App() {
+  const [phoneInput, setPhoneInput] = useState('')
   const [telefono, setTelefono] = useState('')
-  const [searchedPhone, setSearchedPhone] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [hasSearched, setHasSearched] = useState(false)
-  const [retryCount, setRetryCount] = useState(0)
 
   const filteredMessages = useMemo(() => {
     return messages
@@ -68,59 +40,53 @@ export default function App() {
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
   }, [messages, startDate, endDate])
 
-  useEffect(() => {
-    if (!searchedPhone) return
-
+  const fetchMessages = async () => {
     setLoading(true)
     setError('')
 
-    async function loadMessages() {
-      try {
-        const data = await fetchChat(searchedPhone)
+    try {
+      console.log('Fetching...')
 
-        if (data === null) {
-          setMessages([])
-          setError('Error conectando con el servidor')
-          return
-        }
+      const res = await fetch(`${API_URL}?telefono=${telefono}`)
 
-        setMessages(Array.isArray(data) ? data : [])
-      } catch (requestError) {
-        console.error('Fetch error:', requestError)
-        setMessages([])
-        setError('Error conectando con el servidor')
-      } finally {
-        setLoading(false)
-      }
+      console.log('HTTP status:', res.status)
+
+      const data = await res.json()
+
+      console.log('Response data:', data)
+
+      setMessages(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Fetch error:', error)
+      setError('Error conectando con el servidor')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    loadMessages()
-  }, [searchedPhone, retryCount])
+  useEffect(() => {
+    if (!telefono) return
+    fetchMessages()
+  }, [telefono])
 
   function handleSearch(event) {
     event.preventDefault()
 
-    const normalizedPhone = telefono.trim()
+    const normalizedPhone = phoneInput.trim()
     setHasSearched(true)
 
     if (!normalizedPhone) {
       setError('Ingresa un numero de telefono para buscar.')
-      setMessages([])
-      setSearchedPhone('')
+      setTelefono('')
       return
     }
 
-    if (normalizedPhone === searchedPhone) {
-      setRetryCount((currentCount) => currentCount + 1)
-    } else {
-      setSearchedPhone(normalizedPhone)
-    }
+    setTelefono(normalizedPhone)
   }
 
   function handleRetry() {
-    if (!searchedPhone) return
-
-    setRetryCount((currentCount) => currentCount + 1)
+    if (!telefono || loading) return
+    fetchMessages()
   }
 
   return (
@@ -144,11 +110,11 @@ export default function App() {
         </header>
 
         <SearchBar
-          telefono={telefono}
+          telefono={phoneInput}
           startDate={startDate}
           endDate={endDate}
           loading={loading}
-          onTelefonoChange={setTelefono}
+          onTelefonoChange={setPhoneInput}
           onStartDateChange={setStartDate}
           onEndDateChange={setEndDate}
           onSubmit={handleSearch}
@@ -157,7 +123,7 @@ export default function App() {
         {error && (
           <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <span>{error}</span>
-            {searchedPhone && (
+            {telefono && (
               <button
                 type="button"
                 onClick={handleRetry}
@@ -174,7 +140,7 @@ export default function App() {
           messages={filteredMessages}
           loading={loading}
           hasSearched={hasSearched}
-          telefono={searchedPhone}
+          telefono={telefono}
         />
       </div>
     </main>
