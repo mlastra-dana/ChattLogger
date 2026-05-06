@@ -1,28 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import SearchBar from './components/SearchBar.jsx'
 import ChatViewer from './components/ChatViewer.jsx'
 
 const API_URL = 'https://wmkiek2xldnbjg4aew6lrp7z3e0xlcka.lambda-url.us-east-1.on.aws/'
-
-function isInsideDateRange(message, startDate, endDate) {
-  const messageDate = new Date(message.timestamp)
-
-  if (Number.isNaN(messageDate.getTime())) {
-    return false
-  }
-
-  if (startDate) {
-    const start = new Date(`${startDate}T00:00:00`)
-    if (messageDate < start) return false
-  }
-
-  if (endDate) {
-    const end = new Date(`${endDate}T23:59:59.999`)
-    if (messageDate > end) return false
-  }
-
-  return true
-}
 
 export default function App() {
   const [phoneInput, setPhoneInput] = useState('')
@@ -33,12 +13,6 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [hasSearched, setHasSearched] = useState(false)
-
-  const filteredMessages = useMemo(() => {
-    return messages
-      .filter((message) => isInsideDateRange(message, startDate, endDate))
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-  }, [messages, startDate, endDate])
 
   const fetchMessages = async () => {
     setLoading(true)
@@ -55,7 +29,7 @@ export default function App() {
 
       console.log('Response data:', data)
 
-      setMessages(Array.isArray(data) ? data : [])
+      setMessages(Array.isArray(data) ? [...data] : [])
     } catch (error) {
       console.error('Fetch error:', error)
       setError('Error conectando con el servidor')
@@ -104,7 +78,7 @@ export default function App() {
             </div>
 
             <div className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-100">
-              {filteredMessages.length} mensajes
+              {messages.length} mensajes
             </div>
           </div>
         </header>
@@ -137,7 +111,7 @@ export default function App() {
         )}
 
         <ChatViewer
-          messages={filteredMessages}
+          messages={messages}
           loading={loading}
           hasSearched={hasSearched}
           telefono={telefono}

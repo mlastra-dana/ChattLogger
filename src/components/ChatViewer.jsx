@@ -42,19 +42,20 @@ function getDateKey(timestamp) {
 }
 
 function groupMessagesByDate(messages) {
-  return messages.reduce((groups, message) => {
+  return messages.reduce((groups, message, messageIndex) => {
     const key = getDateKey(message.timestamp)
     const lastGroup = groups[groups.length - 1]
+    const item = { message, messageIndex }
 
     if (lastGroup?.key === key) {
-      lastGroup.messages.push(message)
+      lastGroup.messages.push(item)
       return groups
     }
 
     groups.push({
       key,
       label: formatDateSeparator(message.timestamp),
-      messages: [message],
+      messages: [item],
     })
 
     return groups
@@ -63,6 +64,7 @@ function groupMessagesByDate(messages) {
 
 function ChatBubble({ message }) {
   const isIncoming = message.tipo === 'entrada'
+  const text = message.mensaje || '[sin texto]'
 
   return (
     <div className={`flex animate-[fadeIn_180ms_ease-out] ${isIncoming ? 'justify-start' : 'justify-end'}`}>
@@ -74,7 +76,7 @@ function ChatBubble({ message }) {
         }`}
       >
         <p className="whitespace-pre-wrap break-words pr-1 text-[15px] leading-6">
-          {message.mensaje}
+          {text}
         </p>
         <div className="mt-1.5 flex items-center justify-end gap-1.5">
           <span
@@ -102,7 +104,8 @@ function DateSeparator({ label }) {
 
 export default function ChatViewer({ messages, loading, hasSearched, telefono }) {
   const endRef = useRef(null)
-  const groupedMessages = groupMessagesByDate(messages)
+  const safeMessages = [...messages]
+  const groupedMessages = groupMessagesByDate(safeMessages)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -127,7 +130,7 @@ export default function ChatViewer({ messages, loading, hasSearched, telefono })
               <h2 className="truncate text-base font-bold text-slate-950">
                 {telefono || 'Conversacion'}
               </h2>
-              <p className="text-sm text-slate-500">{messages.length} mensajes</p>
+              <p className="text-sm text-slate-500">{safeMessages.length} mensajes</p>
             </div>
           </div>
 
@@ -148,14 +151,14 @@ export default function ChatViewer({ messages, loading, hasSearched, telefono })
               </p>
             </div>
           </div>
-        ) : messages.length > 0 ? (
+        ) : safeMessages.length > 0 ? (
           <div className="flex flex-col gap-2">
-            {groupedMessages.map((group) => (
-              <div key={group.key} className="flex flex-col gap-2.5">
+            {groupedMessages.map((group, groupIndex) => (
+              <div key={`${group.key}-${groupIndex}`} className="flex flex-col gap-2.5">
                 <DateSeparator label={group.label} />
-                {group.messages.map((message, index) => (
+                {group.messages.map(({ message, messageIndex }) => (
                   <ChatBubble
-                    key={`${message.timestamp}-${message.tipo}-${index}`}
+                    key={`${message.timestamp || 'sin-timestamp'}-${messageIndex}`}
                     message={message}
                   />
                 ))}
