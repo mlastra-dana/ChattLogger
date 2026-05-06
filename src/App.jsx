@@ -3,32 +3,16 @@ import SearchBar from './components/SearchBar.jsx'
 import ChatViewer from './components/ChatViewer.jsx'
 
 const API_URL = 'https://wmkiek2xldnbjg4aew6lrp7z3e0xlcka.lambda-url.us-east-1.on.aws/'
-const FETCH_TIMEOUT_MS = 15000
 
-async function fetchChat(telefono, { signal, onError } = {}) {
+async function fetchChat(telefono) {
   const normalizedPhone = telefono.trim()
   const url = `${API_URL}?telefono=${encodeURIComponent(normalizedPhone)}`
-  const timeoutController = new AbortController()
-  const timeoutId = window.setTimeout(() => timeoutController.abort(), FETCH_TIMEOUT_MS)
-
-  if (!API_URL.startsWith('https://')) {
-    console.error('Invalid API URL. HTTPS is required:', API_URL)
-    onError?.(new Error('Invalid API URL'))
-    return []
-  }
-
-  if (signal) {
-    signal.addEventListener('abort', () => timeoutController.abort(), { once: true })
-  }
 
   try {
-    console.log('Fetching:', url)
+    console.log('Fetching...')
+    console.log('URL:', url)
 
-    const response = await fetch(url, {
-      method: 'GET',
-      cache: 'no-store',
-      signal: timeoutController.signal,
-    })
+    const response = await fetch(url)
 
     console.log('HTTP status:', response.status)
 
@@ -42,16 +26,8 @@ async function fetchChat(telefono, { signal, onError } = {}) {
 
     return Array.isArray(data) ? data : []
   } catch (error) {
-    if (signal?.aborted) {
-      console.log('Fetch cancelled:', url)
-      return []
-    }
-
     console.error('Fetch error:', error)
-    onError?.(error)
-    return []
-  } finally {
-    window.clearTimeout(timeoutId)
+    return null
   }
 }
 
@@ -95,25 +71,30 @@ export default function App() {
   useEffect(() => {
     if (!searchedPhone) return
 
-    const controller = new AbortController()
     setLoading(true)
     setError('')
 
     async function loadMessages() {
-      const data = await fetchChat(searchedPhone, {
-        signal: controller.signal,
-        onError: () => setError('Error conectando con el servidor'),
-      })
+      try {
+        const data = await fetchChat(searchedPhone)
 
-      if (!controller.signal.aborted) {
+        if (data === null) {
+          setMessages([])
+          setError('Error conectando con el servidor')
+          return
+        }
+
         setMessages(Array.isArray(data) ? data : [])
+      } catch (requestError) {
+        console.error('Fetch error:', requestError)
+        setMessages([])
+        setError('Error conectando con el servidor')
+      } finally {
         setLoading(false)
       }
     }
 
     loadMessages()
-
-    return () => controller.abort()
   }, [searchedPhone, retryCount])
 
   function handleSearch(event) {
