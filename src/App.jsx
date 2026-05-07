@@ -13,6 +13,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [hasSearched, setHasSearched] = useState(false)
+  const [refreshCount, setRefreshCount] = useState(0)
 
   const fetchMessages = async () => {
     setLoading(true)
@@ -41,7 +42,7 @@ export default function App() {
   useEffect(() => {
     if (!telefono) return
     fetchMessages()
-  }, [telefono])
+  }, [telefono, refreshCount])
 
   function handleSearch(event) {
     event.preventDefault()
@@ -55,12 +56,17 @@ export default function App() {
       return
     }
 
+    if (normalizedPhone === telefono) {
+      setRefreshCount((currentCount) => currentCount + 1)
+      return
+    }
+
     setTelefono(normalizedPhone)
   }
 
   function handleRetry() {
     if (!telefono || loading) return
-    fetchMessages()
+    setRefreshCount((currentCount) => currentCount + 1)
   }
 
   return (
