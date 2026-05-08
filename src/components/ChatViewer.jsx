@@ -23,54 +23,16 @@ function formatTimestamp(timestamp) {
   }
 }
 
-function formatDateSeparator(timestamp) {
-  const date = parseDate(timestamp)
-  if (!date) return 'Fecha no disponible'
-
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date)
-}
-
-function getDateKey(timestamp) {
-  const date = parseDate(timestamp)
-  if (!date) return 'unknown'
-
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
-}
-
-function groupMessagesByDate(messages) {
-  return messages.reduce((groups, message, messageIndex) => {
-    const key = getDateKey(message.timestamp)
-    const lastGroup = groups[groups.length - 1]
-    const item = { message, messageIndex }
-
-    if (lastGroup?.key === key) {
-      lastGroup.messages.push(item)
-      return groups
-    }
-
-    groups.push({
-      key,
-      label: formatDateSeparator(message.timestamp),
-      messages: [item],
-    })
-
-    return groups
-  }, [])
-}
-
 function ChatBubble({ msg }) {
-  const isUser = msg.role === 'user'
-  const text = msg.content || '[sin texto]'
+  const tipo = msg.tipo || msg.role || 'entrada'
+  const isEntrada = tipo === 'entrada' || tipo === 'user'
+  const text = msg.mensaje || msg.content || '[sin texto]'
 
   return (
-    <div className={`flex animate-[fadeIn_180ms_ease-out] ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`mb-2 flex animate-[fadeIn_180ms_ease-out] ${isEntrada ? 'justify-end' : 'justify-start'}`}>
       <article
-        className={`relative max-w-[70%] rounded-[18px] px-3.5 py-2.5 shadow-sm ring-1 ${
-          isUser
+        className={`relative max-w-[70%] rounded-[18px] px-3.5 py-2.5 text-sm shadow-sm ring-1 ${
+          isEntrada
             ? 'rounded-tr-sm border-r-4 border-emerald-500 bg-[#DCF8C6] text-slate-950 shadow-emerald-950/10 ring-emerald-900/5'
             : 'rounded-tl-sm border-l-4 border-slate-300 bg-white text-slate-900 shadow-slate-900/10 ring-slate-900/5'
         }`}
@@ -80,7 +42,7 @@ function ChatBubble({ msg }) {
         </p>
         <div className="mt-1.5 flex items-center justify-end gap-1.5">
           <span
-            className={`h-1.5 w-1.5 rounded-full ${isUser ? 'bg-emerald-600/50' : 'bg-slate-400/70'}`}
+            className={`h-1.5 w-1.5 rounded-full ${isEntrada ? 'bg-emerald-600/50' : 'bg-slate-400/70'}`}
             aria-hidden="true"
           />
           <time className="text-xs font-medium text-slate-500">
@@ -92,20 +54,9 @@ function ChatBubble({ msg }) {
   )
 }
 
-function DateSeparator({ label }) {
-  return (
-    <div className="sticky top-3 z-10 flex justify-center py-2">
-      <span className="rounded-full bg-white/85 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.08em] text-slate-500 shadow-sm ring-1 ring-black/5 backdrop-blur">
-        {label}
-      </span>
-    </div>
-  )
-}
-
 export default function ChatViewer({ messages, loading, hasSearched, telefono }) {
   const endRef = useRef(null)
   const safeMessages = [...messages]
-  const groupedMessages = groupMessagesByDate(safeMessages)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -153,16 +104,11 @@ export default function ChatViewer({ messages, loading, hasSearched, telefono })
           </div>
         ) : safeMessages.length > 0 ? (
           <div className="flex flex-col gap-2">
-            {groupedMessages.map((group, groupIndex) => (
-              <div key={`${group.key}-${groupIndex}`} className="flex flex-col gap-2.5">
-                <DateSeparator label={group.label} />
-                {group.messages.map(({ message: msg, messageIndex }) => (
-                  <ChatBubble
-                    key={`${msg.timestamp || 'sin-timestamp'}-${messageIndex}`}
-                    msg={msg}
-                  />
-                ))}
-              </div>
+            {safeMessages.map((msg, index) => (
+              <ChatBubble
+                key={`${msg.timestamp || 'sin-timestamp'}-${index}`}
+                msg={msg}
+              />
             ))}
             <div ref={endRef} />
           </div>
