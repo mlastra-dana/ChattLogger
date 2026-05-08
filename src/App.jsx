@@ -12,9 +12,12 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [hasSearched, setHasSearched] = useState(false)
-  const [refreshCount, setRefreshCount] = useState(0)
+  const [loaded, setLoaded] = useState(false)
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (telefonoActual) => {
+    if (!telefonoActual || loading) return
+
+    setLoaded(true)
     setLoading(true)
     setError('')
 
@@ -25,7 +28,7 @@ export default function App() {
 
       console.log('Fetching...')
 
-      const queryParams = new URLSearchParams({ telefono })
+      const queryParams = new URLSearchParams({ telefono: telefonoActual })
       const res = await fetch(`${API_URL}?${queryParams.toString()}`)
 
       console.log('HTTP status:', res.status)
@@ -51,6 +54,7 @@ export default function App() {
       setMessages(mensajesTransformados)
     } catch (error) {
       console.error('Fetch error:', error)
+      setLoaded(false)
       setError('Error conectando con el servidor')
     } finally {
       setLoading(false)
@@ -58,12 +62,14 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!telefono) return
-    fetchMessages()
-  }, [telefono, refreshCount])
+    if (!telefono || loaded) return
+    fetchMessages(telefono)
+  }, [telefono])
 
   function handleSearch(event) {
     event.preventDefault()
+
+    if (loading) return
 
     const normalizedPhone = phoneInput.trim()
     setHasSearched(true)
@@ -71,20 +77,26 @@ export default function App() {
     if (!normalizedPhone) {
       setError('Ingresa un numero de telefono para buscar.')
       setTelefono('')
+      setMessages([])
+      setLoaded(false)
       return
     }
 
     if (normalizedPhone === telefono) {
-      setRefreshCount((currentCount) => currentCount + 1)
+      if (!loaded) {
+        fetchMessages(normalizedPhone)
+      }
       return
     }
 
+    setLoaded(false)
     setTelefono(normalizedPhone)
   }
 
   function handleRetry() {
     if (!telefono || loading) return
-    setRefreshCount((currentCount) => currentCount + 1)
+    setLoaded(false)
+    fetchMessages(telefono)
   }
 
   return (
