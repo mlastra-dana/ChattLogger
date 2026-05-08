@@ -63,16 +63,16 @@ function groupMessagesByDate(messages) {
 }
 
 function ChatBubble({ msg }) {
-  const isEntrada = msg.tipo === 'entrada'
-  const text = msg.mensaje || '[sin texto]'
+  const isUser = msg.role === 'user'
+  const text = msg.content || '[sin texto]'
 
   return (
-    <div className={`flex animate-[fadeIn_180ms_ease-out] ${isEntrada ? 'justify-start' : 'justify-end'}`}>
+    <div className={`flex animate-[fadeIn_180ms_ease-out] ${isUser ? 'justify-end' : 'justify-start'}`}>
       <article
         className={`relative max-w-[70%] rounded-[18px] px-3.5 py-2.5 shadow-sm ring-1 ${
-          isEntrada
-            ? 'rounded-tl-sm border-l-4 border-emerald-500 bg-[#DCF8C6] text-slate-950 shadow-emerald-950/10 ring-emerald-900/5'
-            : 'rounded-tr-sm border-r-4 border-slate-300 bg-white text-slate-900 shadow-slate-900/10 ring-slate-900/5'
+          isUser
+            ? 'rounded-tr-sm border-r-4 border-emerald-500 bg-[#DCF8C6] text-slate-950 shadow-emerald-950/10 ring-emerald-900/5'
+            : 'rounded-tl-sm border-l-4 border-slate-300 bg-white text-slate-900 shadow-slate-900/10 ring-slate-900/5'
         }`}
       >
         <p className="whitespace-pre-wrap break-words pr-1 text-[15px] leading-6">
@@ -80,7 +80,7 @@ function ChatBubble({ msg }) {
         </p>
         <div className="mt-1.5 flex items-center justify-end gap-1.5">
           <span
-            className={`h-1.5 w-1.5 rounded-full ${isEntrada ? 'bg-emerald-600/50' : 'bg-slate-400/70'}`}
+            className={`h-1.5 w-1.5 rounded-full ${isUser ? 'bg-emerald-600/50' : 'bg-slate-400/70'}`}
             aria-hidden="true"
           />
           <time className="text-xs font-medium text-slate-500">

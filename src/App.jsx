@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import SearchBar from './components/SearchBar.jsx'
 import ChatViewer from './components/ChatViewer.jsx'
-
-const API_URL = 'https://wmkiek2xldnbjg4aew6lrp7z3e0xlcka.lambda-url.us-east-1.on.aws/'
+import { API_URL } from './config/api.js'
 
 export default function App() {
   const [phoneInput, setPhoneInput] = useState('')
@@ -20,17 +19,36 @@ export default function App() {
     setError('')
 
     try {
+      if (!API_URL) {
+        throw new Error('VITE_API_URL no esta configurada')
+      }
+
       console.log('Fetching...')
 
-      const res = await fetch(`${API_URL}?telefono=${telefono}`)
+      const queryParams = new URLSearchParams({ telefono })
+      const res = await fetch(`${API_URL}?${queryParams.toString()}`)
 
       console.log('HTTP status:', res.status)
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
 
       const data = await res.json()
 
       console.log('Response data:', data)
 
-      setMessages(Array.isArray(data) ? [...data] : [])
+      const mensajesTransformados = Array.isArray(data)
+        ? data
+            .map((item) => ({
+              role: item.tipo,
+              content: item.mensaje,
+              timestamp: item.timestamp,
+            }))
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        : []
+
+      setMessages(mensajesTransformados)
     } catch (error) {
       console.error('Fetch error:', error)
       setError('Error conectando con el servidor')
