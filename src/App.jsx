@@ -44,6 +44,8 @@ export default function App() {
       const mensajesTransformados = Array.isArray(data)
         ? data
             .map((item) => ({
+              tipo: item.tipo,
+              mensaje: item.mensaje,
               role: item.tipo,
               content: item.mensaje,
               timestamp: item.timestamp,

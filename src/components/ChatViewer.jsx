@@ -23,6 +23,41 @@ function formatTimestamp(timestamp) {
   }
 }
 
+function sanitizeFilePart(value) {
+  return String(value || 'chat')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'chat'
+}
+
+function getMessageExportRow(msg) {
+  const tipo = msg.tipo || msg.role || 'entrada'
+  const mensaje = msg.mensaje || msg.content || ''
+
+  return {
+    timestamp: msg.timestamp || '',
+    tipo,
+    mensaje,
+  }
+}
+
+function downloadFile({ content, filename, type }) {
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function escapeCsvValue(value) {
+  return `"${String(value ?? '').replaceAll('"', '""')}"`
+}
+
 function ChatBubble({ msg }) {
   const tipo = msg.tipo || msg.role || 'entrada'
   const isEntrada = tipo === 'entrada' || tipo === 'user'
@@ -57,6 +92,37 @@ function ChatBubble({ msg }) {
 export default function ChatViewer({ messages, loading, hasSearched, telefono }) {
   const endRef = useRef(null)
   const safeMessages = [...messages]
+  const canExport = safeMessages.length > 0
+
+  function handleExportJson() {
+    if (!canExport) return
+
+    const rows = safeMessages.map(getMessageExportRow)
+    const filename = `chat-${sanitizeFilePart(telefono)}.json`
+
+    downloadFile({
+      content: JSON.stringify(rows, null, 2),
+      filename,
+      type: 'application/json;charset=utf-8',
+    })
+  }
+
+  function handleExportCsv() {
+    if (!canExport) return
+
+    const rows = safeMessages.map(getMessageExportRow)
+    const header = ['timestamp', 'tipo', 'mensaje']
+    const body = rows.map((row) =>
+      header.map((field) => escapeCsvValue(row[field])).join(',')
+    )
+    const filename = `chat-${sanitizeFilePart(telefono)}.csv`
+
+    downloadFile({
+      content: [header.join(','), ...body].join('\n'),
+      filename,
+      type: 'text/csv;charset=utf-8',
+    })
+  }
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -85,9 +151,27 @@ export default function ChatViewer({ messages, loading, hasSearched, telefono })
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm ring-1 ring-black/5">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
-            Monitor
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={!canExport}
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-xs font-bold uppercase tracking-[0.08em] text-slate-700 shadow-sm ring-1 ring-black/5 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:shadow-none"
+            >
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={handleExportJson}
+              disabled={!canExport}
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-xs font-bold uppercase tracking-[0.08em] text-slate-700 shadow-sm ring-1 ring-black/5 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:shadow-none"
+            >
+              JSON
+            </button>
+            <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm ring-1 ring-black/5">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
+              Monitor
+            </div>
           </div>
         </div>
       </div>
