@@ -1,9 +1,36 @@
 import { useEffect, useState } from 'react'
 import SearchBar from './components/SearchBar.jsx'
 import ChatViewer from './components/ChatViewer.jsx'
+import LoginScreen from './components/LoginScreen.jsx'
 import { API_URL } from './config/api.js'
 
+const CLEARED_UNTIL_STORAGE_KEY = 'chat-history-viewer-cleared-until'
+const SESSION_STORAGE_KEY = 'chat-history-viewer-session-started'
+
+function getStoredClearedUntil() {
+  try {
+    const storedValue = window.localStorage.getItem(CLEARED_UNTIL_STORAGE_KEY)
+    const parsedValue = JSON.parse(storedValue || '{}')
+
+    return parsedValue && typeof parsedValue === 'object' ? parsedValue : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveStoredClearedUntil(value) {
+  window.localStorage.setItem(CLEARED_UNTIL_STORAGE_KEY, JSON.stringify(value))
+}
+
+function getTimestampTime(timestamp) {
+  const time = new Date(timestamp).getTime()
+  return Number.isNaN(time) ? 0 : time
+}
+
 export default function App() {
+  const [sessionStarted, setSessionStarted] = useState(
+    () => window.localStorage.getItem(SESSION_STORAGE_KEY) === 'true'
+  )
   const [phoneInput, setPhoneInput] = useState('')
   const [telefono, setTelefono] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -13,6 +40,7 @@ export default function App() {
   const [error, setError] = useState('')
   const [hasSearched, setHasSearched] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [clearedUntilByPhone, setClearedUntilByPhone] = useState(getStoredClearedUntil)
 
   const fetchMessages = async (telefonoActual) => {
     if (!telefonoActual || loading) return
@@ -52,8 +80,12 @@ export default function App() {
             }))
             .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
         : []
+      const clearedUntil = clearedUntilByPhone[telefonoActual] || 0
+      const mensajesVisibles = mensajesTransformados.filter(
+        (message) => getTimestampTime(message.timestamp) > clearedUntil
+      )
 
-      setMessages(mensajesTransformados)
+      setMessages(mensajesVisibles)
     } catch (error) {
       console.error('Fetch error:', error)
       setLoaded(false)
@@ -85,9 +117,7 @@ export default function App() {
     }
 
     if (normalizedPhone === telefono) {
-      if (!loaded) {
-        fetchMessages(normalizedPhone)
-      }
+      fetchMessages(normalizedPhone)
       return
     }
 
@@ -99,6 +129,46 @@ export default function App() {
     if (!telefono || loading) return
     setLoaded(false)
     fetchMessages(telefono)
+  }
+
+  function handleClearChat() {
+    if (telefono && messages.length > 0) {
+      const latestVisibleTimestamp = Math.max(
+        ...messages.map((message) => getTimestampTime(message.timestamp))
+      )
+      const updatedClearedUntil = {
+        ...clearedUntilByPhone,
+        [telefono]: latestVisibleTimestamp,
+      }
+
+      setClearedUntilByPhone(updatedClearedUntil)
+      saveStoredClearedUntil(updatedClearedUntil)
+    }
+
+    setMessages([])
+  }
+
+  function handleLogin({ keepSession }) {
+    if (keepSession) {
+      window.localStorage.setItem(SESSION_STORAGE_KEY, 'true')
+    }
+
+    setSessionStarted(true)
+  }
+
+  function handleLogout() {
+    window.localStorage.removeItem(SESSION_STORAGE_KEY)
+    setSessionStarted(false)
+    setPhoneInput('')
+    setTelefono('')
+    setMessages([])
+    setError('')
+    setHasSearched(false)
+    setLoaded(false)
+  }
+
+  if (!sessionStarted) {
+    return <LoginScreen onLogin={handleLogin} />
   }
 
   return (
@@ -115,9 +185,13 @@ export default function App() {
               </h1>
             </div>
 
-            <div className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-100">
-              {messages.length} mensajes
-            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-[#075e54] px-5 text-xs font-bold uppercase tracking-[0.12em] text-white shadow-sm transition hover:bg-[#064b43]"
+            >
+              Salir
+            </button>
           </div>
         </header>
 
@@ -153,6 +227,7 @@ export default function App() {
           loading={loading}
           hasSearched={hasSearched}
           telefono={telefono}
+          onClear={handleClearChat}
         />
       </div>
     </main>

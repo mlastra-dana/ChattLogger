@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 function parseDate(timestamp) {
   const date = new Date(timestamp)
@@ -66,10 +66,10 @@ function ChatBubble({ msg }) {
   return (
     <div className={`mb-2 flex animate-[fadeIn_180ms_ease-out] ${isEntrada ? 'justify-end' : 'justify-start'}`}>
       <article
-        className={`relative max-w-[70%] rounded-[18px] px-3.5 py-2.5 text-sm shadow-sm ring-1 ${
+        className={`relative max-w-[82%] rounded-lg px-3.5 py-2 text-sm shadow-sm ring-1 sm:max-w-[70%] ${
           isEntrada
-            ? 'rounded-tr-sm border-r-4 border-emerald-500 bg-[#DCF8C6] text-slate-950 shadow-emerald-950/10 ring-emerald-900/5'
-            : 'rounded-tl-sm border-l-4 border-slate-300 bg-white text-slate-900 shadow-slate-900/10 ring-slate-900/5'
+            ? 'rounded-tr-none bg-[#d9fdd3] text-slate-950 shadow-emerald-950/10 ring-emerald-900/5'
+            : 'rounded-tl-none bg-white text-slate-900 shadow-slate-900/10 ring-slate-900/5'
         }`}
       >
         <p className="whitespace-pre-wrap break-words pr-1 text-[15px] leading-6">
@@ -89,8 +89,9 @@ function ChatBubble({ msg }) {
   )
 }
 
-export default function ChatViewer({ messages, loading, hasSearched, telefono }) {
+export default function ChatViewer({ messages, loading, hasSearched, telefono, onClear }) {
   const endRef = useRef(null)
+  const [exportOpen, setExportOpen] = useState(false)
   const safeMessages = [...messages]
   const canExport = safeMessages.length > 0
 
@@ -105,6 +106,7 @@ export default function ChatViewer({ messages, loading, hasSearched, telefono })
       filename,
       type: 'application/json;charset=utf-8',
     })
+    setExportOpen(false)
   }
 
   function handleExportCsv() {
@@ -122,6 +124,7 @@ export default function ChatViewer({ messages, loading, hasSearched, telefono })
       filename,
       type: 'text/csv;charset=utf-8',
     })
+    setExportOpen(false)
   }
 
   useEffect(() => {
@@ -129,7 +132,7 @@ export default function ChatViewer({ messages, loading, hasSearched, telefono })
   }, [messages])
 
   return (
-    <section className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/70 bg-[#efeae2] shadow-2xl shadow-stone-400/30">
+    <section className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-black/10 bg-[#efeae2] shadow-2xl shadow-stone-400/30">
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(6px); }
@@ -137,46 +140,65 @@ export default function ChatViewer({ messages, loading, hasSearched, telefono })
         }
       `}</style>
 
-      <div className="border-b border-stone-200/80 bg-[#f0f2f5]/95 px-5 py-4 backdrop-blur">
-        <div className="flex items-center justify-between gap-4">
+      <div className="border-b border-[#075e54]/70 bg-[#075e54] px-4 py-3 text-white shadow-md sm:px-5">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white shadow-sm">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#25d366] text-sm font-bold text-[#075e54] shadow-sm">
               WA
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-base font-bold text-slate-950">
+              <h2 className="truncate text-base font-bold text-white">
                 {telefono || 'Conversacion'}
               </h2>
-              <p className="text-sm text-slate-500">{safeMessages.length} mensajes</p>
+              <p className="text-sm text-white/75">{safeMessages.length} mensajes</p>
             </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={handleExportCsv}
+              onClick={onClear}
               disabled={!canExport}
-              className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-xs font-bold uppercase tracking-[0.08em] text-slate-700 shadow-sm ring-1 ring-black/5 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:shadow-none"
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-white/10 px-3.5 text-xs font-bold uppercase tracking-[0.08em] text-white ring-1 ring-white/15 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:text-white/35 disabled:ring-white/10"
             >
-              CSV
+              Limpiar
             </button>
-            <button
-              type="button"
-              onClick={handleExportJson}
-              disabled={!canExport}
-              className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-xs font-bold uppercase tracking-[0.08em] text-slate-700 shadow-sm ring-1 ring-black/5 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:shadow-none"
-            >
-              JSON
-            </button>
-            <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm ring-1 ring-black/5">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
-              Monitor
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setExportOpen((current) => !current)}
+                disabled={!canExport}
+                className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-3.5 text-xs font-bold uppercase tracking-[0.08em] text-[#075e54] shadow-sm transition hover:bg-[#f0f2f5] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/45 disabled:shadow-none"
+                aria-expanded={exportOpen}
+              >
+                Exportar
+              </button>
+
+              {exportOpen && (
+                <div className="absolute right-0 top-11 z-20 w-44 overflow-hidden rounded-lg bg-white py-1 text-sm text-slate-800 shadow-xl ring-1 ring-black/10">
+                  <button
+                    type="button"
+                    onClick={handleExportCsv}
+                    className="block w-full px-4 py-2.5 text-left font-semibold transition hover:bg-[#f0f2f5]"
+                  >
+                    Descargar CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportJson}
+                    className="block w-full px-4 py-2.5 text-left font-semibold transition hover:bg-[#f0f2f5]"
+                  >
+                    Descargar JSON
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="h-[58vh] overflow-y-auto scroll-smooth bg-[#ece5dd] bg-[radial-gradient(circle_at_16px_16px,rgba(255,255,255,0.38)_1.5px,transparent_1.5px),linear-gradient(135deg,rgba(255,255,255,0.24)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.24)_50%,rgba(255,255,255,0.24)_75%,transparent_75%,transparent)] bg-[length:34px_34px,42px_42px] px-4 py-5 sm:h-[62vh] sm:px-7">
+      <div className="h-[58vh] overflow-y-auto scroll-smooth bg-[#efeae2] bg-[radial-gradient(circle_at_16px_16px,rgba(255,255,255,0.32)_1.5px,transparent_1.5px),linear-gradient(135deg,rgba(255,255,255,0.22)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.22)_50%,rgba(255,255,255,0.22)_75%,transparent_75%,transparent)] bg-[length:34px_34px,42px_42px] px-4 py-5 sm:h-[62vh] sm:px-7">
         {loading ? (
           <div className="flex h-full items-center justify-center">
             <div className="rounded-2xl bg-white/90 px-5 py-4 text-center shadow-lg">
