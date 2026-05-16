@@ -27,6 +27,35 @@ function getTimestampTime(timestamp) {
   return Number.isNaN(time) ? 0 : time
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+function isFetchNetworkError(error) {
+  return error instanceof TypeError && error.message === 'Failed to fetch'
+}
+
+async function fetchWithRetry(url, options = {}) {
+  const maxAttempts = options.maxAttempts || 3
+  const retryDelayMs = options.retryDelayMs || 800
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetch(url)
+    } catch (error) {
+      const shouldRetry = isFetchNetworkError(error) && attempt < maxAttempts
+
+      if (!shouldRetry) {
+        throw error
+      }
+
+      await sleep(retryDelayMs * attempt)
+    }
+  }
+}
+
 export default function App() {
   const [sessionStarted, setSessionStarted] = useState(
     () => window.localStorage.getItem(SESSION_STORAGE_KEY) === 'true'
@@ -57,7 +86,7 @@ export default function App() {
       console.log('Fetching...')
 
       const queryParams = new URLSearchParams({ telefono: telefonoActual })
-      const res = await fetch(`${API_URL}?${queryParams.toString()}`)
+      const res = await fetchWithRetry(`${API_URL}?${queryParams.toString()}`)
 
       console.log('HTTP status:', res.status)
 
@@ -89,7 +118,11 @@ export default function App() {
     } catch (error) {
       console.error('Fetch error:', error)
       setLoaded(false)
-      setError('Error conectando con el servidor')
+      setError(
+        isFetchNetworkError(error)
+          ? 'No se pudo conectar con el servidor. Intenta de nuevo en unos segundos.'
+          : 'Error consultando el historial'
+      )
     } finally {
       setLoading(false)
     }
